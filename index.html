@@ -7,50 +7,100 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    .sticker-btn { transition: transform 0.1s; }
-    .sticker-btn:hover { transform: scale(1.15); }
-    .sticker-btn.selected { outline: 3px solid #ec4899; outline-offset: 2px; background-color: #27251f; }
-    #messages { scrollbar-width: thin; }
+    @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap');
+    
+    body {
+      font-family: 'Comic Neue', cursive;
+      text-shadow: 2px 2px 0 #000000;
+    }
+    
+    .message-bubble {
+      background-color: #fff;
+      color: #000;
+      text-shadow: none;
+      border: 3px solid #000;
+    }
+    
+    .sticker-btn {
+      transition: all 0.1s;
+      border: 2px solid #000;
+    }
+    .sticker-btn:hover { transform: scale(1.1); }
+    .sticker-btn.selected {
+      outline: 4px solid #ec4899;
+      background-color: #fffbeb;
+    }
+    
+    .emoji-choice {
+      transition: all 0.1s;
+      border: 2px solid #000;
+    }
+    .emoji-choice.selected {
+      outline: 4px solid #ec4899;
+      background-color: #fffbeb;
+    }
   </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100">
-  <div class="max-w-2xl mx-auto flex flex-col h-screen">
+<body class="bg-[#2ce8f4] text-[#f9f6ae]">
+  <div class="max-w-2xl mx-auto flex flex-col h-screen p-3">
+    
     <!-- Header -->
-    <div class="bg-zinc-900 border-b border-zinc-700 p-4 flex items-center justify-between">
+    <div class="bg-white border-4 border-black p-3 mb-3 rounded-2xl flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold">📖 Zine Sticker Drop</h1>
-        <p class="text-xs text-zinc-400">Emojis only • Send multiple at once</p>
+        <h1 class="text-2xl font-bold text-black">📖 Zine Sticker Drop</h1>
       </div>
     </div>
 
     <!-- Messages -->
-    <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-950"></div>
+    <div id="messages" class="flex-1 overflow-y-auto space-y-3 pr-1 mb-3"></div>
 
     <!-- Compose -->
-    <div class="bg-zinc-900 border-t border-zinc-700 p-4 space-y-4">
-
-      <!-- Emoji Username -->
+    <div class="bg-white border-4 border-black p-3 rounded-2xl space-y-3">
+      
+      <!-- Name -->
       <div>
-        <input id="username" type="text" maxlength="30" 
-               placeholder="Your name (emojis only, e.g. 🐱📖)"
-               class="w-full bg-zinc-800 border border-zinc-700 focus:border-pink-500 rounded-xl px-4 py-3 text-sm outline-none">
-        <p class="text-[10px] text-zinc-500 mt-1">Use only emojis for your name</p>
+        <div onclick="openNamePicker()" 
+             class="w-full bg-[#f9f6ae] border-4 border-black hover:bg-white rounded-xl px-4 py-2.5 text-lg cursor-pointer flex items-center justify-between text-black">
+          <span id="name-display" class="font-bold">Click here to set your emoji name</span>
+          <span class="text-sm">✏️</span>
+        </div>
       </div>
 
-      <!-- Sticker Grid (Multi-select) -->
+      <!-- Sticker Grid -->
       <div>
-        <p class="text-xs text-zinc-400 mb-2">Select one or more stickers:</p>
-        <div id="sticker-grid" class="grid grid-cols-8 sm:grid-cols-10 gap-2 p-3 bg-zinc-800 rounded-2xl max-h-48 overflow-y-auto"></div>
+        <p class="text-xs font-bold text-black mb-1">Tap to select (same emoji multiple times = OK):</p>
+        <div id="sticker-grid" class="grid grid-cols-8 sm:grid-cols-10 gap-1.5 p-2 bg-[#f9f6ae] border-4 border-black rounded-xl max-h-40 overflow-y-auto"></div>
       </div>
 
       <!-- Preview -->
-      <div id="preview" class="min-h-[70px] flex flex-wrap items-center gap-2 p-3 bg-zinc-800 rounded-2xl text-5xl"></div>
+      <div id="preview" class="min-h-[52px] flex flex-wrap items-center gap-1 p-2.5 bg-[#f9f6ae] border-4 border-black rounded-xl text-4xl text-black">
+        <span class="text-black/60 text-sm">Selected stickers will appear here</span>
+      </div>
 
-      <!-- Send Button -->
-      <button onclick="sendSticker()" id="send-btn"
-              class="w-full bg-pink-600 hover:bg-pink-500 disabled:bg-zinc-700 disabled:text-zinc-400 font-semibold py-4 rounded-2xl text-lg transition">
+      <button onclick="sendStickers()" id="send-btn"
+              class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 rounded-2xl text-lg border-4 border-black transition disabled:bg-gray-400">
         DROP STICKERS
       </button>
+    </div>
+  </div>
+
+  <!-- Name Picker Modal -->
+  <div id="name-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+    <div class="bg-white border-4 border-black rounded-2xl p-5 w-full max-w-sm mx-4">
+      <h2 class="text-xl font-bold text-black mb-1">Choose your emoji name</h2>
+      <p class="text-sm text-black/70 mb-3">Click emojis (max 8)</p>
+
+      <div id="name-emoji-grid" class="grid grid-cols-8 gap-1.5 p-2 bg-[#f9f6ae] border-4 border-black rounded-xl mb-3 max-h-56 overflow-y-auto"></div>
+
+      <div class="mb-3">
+        <p class="text-xs text-black/70 mb-1">Your name:</p>
+        <div id="name-preview" class="min-h-[44px] flex flex-wrap items-center gap-1 p-2.5 bg-white border-4 border-black rounded-xl text-3xl text-black"></div>
+      </div>
+
+      <div class="flex gap-3">
+        <button onclick="clearNameSelection()" class="flex-1 py-2.5 rounded-xl bg-white border-4 border-black font-bold text-black">Clear</button>
+        <button onclick="confirmName()" class="flex-1 py-2.5 rounded-xl bg-pink-500 text-white font-bold border-4 border-black">Use This Name</button>
+      </div>
     </div>
   </div>
 
@@ -68,6 +118,7 @@
 
     let supabaseClient;
     let selectedStickers = [];
+    let currentNameEmojis = [];
 
     function initSupabase() {
       const { createClient } = supabase;
@@ -79,21 +130,21 @@
       grid.innerHTML = '';
       stickers.forEach(sticker => {
         const btn = document.createElement('button');
-        btn.className = 'sticker-btn text-4xl p-2 hover:bg-zinc-700 rounded-xl aspect-square flex items-center justify-center';
+        btn.className = 'sticker-btn text-3xl p-1.5 hover:bg-white rounded-lg aspect-square flex items-center justify-center bg-[#f9f6ae] border-2 border-black';
         btn.textContent = sticker;
-        btn.onclick = () => toggleSticker(sticker, btn);
+        btn.onclick = () => addSticker(sticker, btn);
         grid.appendChild(btn);
       });
     }
 
-    function toggleSticker(sticker, btn) {
-      if (selectedStickers.includes(sticker)) {
-        selectedStickers = selectedStickers.filter(s => s !== sticker);
-        btn.classList.remove('selected');
-      } else {
-        selectedStickers.push(sticker);
-        btn.classList.add('selected');
+    // Allow the same emoji multiple times
+    function addSticker(sticker, btn) {
+      if (selectedStickers.length >= 40) {
+        alert("Max 40 stickers per message!");
+        return;
       }
+      selectedStickers.push(sticker);
+      btn.classList.add('selected');
       updatePreview();
       updateSendButton();
     }
@@ -102,7 +153,7 @@
       const preview = document.getElementById('preview');
       preview.innerHTML = '';
       if (selectedStickers.length === 0) {
-        preview.innerHTML = '<span class="text-zinc-500 text-sm">Selected stickers will appear here</span>';
+        preview.innerHTML = '<span class="text-black/60 text-sm">Selected stickers will appear here</span>';
         return;
       }
       selectedStickers.forEach(s => {
@@ -114,21 +165,92 @@
 
     function updateSendButton() {
       const btn = document.getElementById('send-btn');
-      const username = document.getElementById('username').value.trim();
-      btn.disabled = selectedStickers.length === 0 || !username;
+      const name = document.getElementById('name-display').textContent;
+      btn.disabled = selectedStickers.length === 0 || name.includes('Click');
+    }
+
+    function openNamePicker() {
+      const modal = document.getElementById('name-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      renderNameEmojiGrid();
+    }
+
+    function closeNamePicker() {
+      const modal = document.getElementById('name-modal');
+      modal.classList.remove('flex');
+      modal.classList.add('hidden');
+    }
+
+    function renderNameEmojiGrid() {
+      const grid = document.getElementById('name-emoji-grid');
+      grid.innerHTML = '';
+      currentNameEmojis = [];
+
+      stickers.forEach(emoji => {
+        const btn = document.createElement('button');
+        btn.className = 'emoji-choice text-2xl p-1.5 hover:bg-white rounded-lg aspect-square flex items-center justify-center bg-[#f9f6ae] border-2 border-black';
+        btn.textContent = emoji;
+        btn.onclick = () => {
+          if (currentNameEmojis.length < 8) {
+            currentNameEmojis.push(emoji);
+            updateNamePreview();
+          }
+        };
+        grid.appendChild(btn);
+      });
+      updateNamePreview();
+    }
+
+    function updateNamePreview() {
+      const preview = document.getElementById('name-preview');
+      preview.innerHTML = '';
+      if (currentNameEmojis.length === 0) {
+        preview.innerHTML = '<span class="text-black/60 text-sm">Click emojis above</span>';
+        return;
+      }
+      currentNameEmojis.forEach(e => {
+        const span = document.createElement('span');
+        span.textContent = e;
+        preview.appendChild(span);
+      });
+    }
+
+    function clearNameSelection() {
+      currentNameEmojis = [];
+      updateNamePreview();
+    }
+
+    function confirmName() {
+      if (currentNameEmojis.length === 0) {
+        alert("Please select at least one emoji.");
+        return;
+      }
+      const nameString = currentNameEmojis.join('');
+      document.getElementById('name-display').textContent = nameString;
+      localStorage.setItem('stickerName', nameString);
+      closeNamePicker();
+      updateSendButton();
+    }
+
+    function loadSavedName() {
+      const saved = localStorage.getItem('stickerName');
+      if (saved) {
+        document.getElementById('name-display').textContent = saved;
+      }
     }
 
     function createMessage(msg) {
       const div = document.createElement('div');
-      div.className = 'flex items-start gap-3 bg-zinc-900 rounded-2xl p-4';
+      div.className = 'message-bubble flex items-start gap-3 p-3 rounded-2xl text-sm';
       const time = new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
       div.innerHTML = `
         <div class="flex-1">
-          <div class="flex items-center gap-2 mb-1">
-            <span class="px-3 py-0.5 bg-zinc-700 text-xs font-mono rounded-full text-pink-300">${msg.username}</span>
-            <span class="text-xs text-zinc-500">${time}</span>
+          <div class="flex items-center gap-2 mb-0.5">
+            <span class="px-2.5 py-0.5 bg-black text-[#f9f6ae] text-xs font-bold rounded-full">${msg.username}</span>
+            <span class="text-xs text-black/60">${time}</span>
           </div>
-          <div class="text-5xl leading-none flex flex-wrap gap-1">${msg.sticker}</div>
+          <div class="text-4xl leading-none flex flex-wrap gap-0.5">${msg.sticker}</div>
         </div>
       `;
       return div;
@@ -161,37 +283,30 @@
         .subscribe();
     }
 
-    async function sendSticker() {
-      const username = document.getElementById('username').value.trim();
-
-      if (!username) {
-        alert("Please enter an emoji name.");
+    async function sendStickers() {
+      const username = document.getElementById('name-display').textContent;
+      if (username.includes('Click')) {
+        alert("Please set your emoji name first.");
+        openNamePicker();
+        return;
+      }
+      if (selectedStickers.length === 0) return;
+      if (selectedStickers.length > 40) {
+        alert("Max 40 stickers per message!");
         return;
       }
 
-      // Basic check: warn if it looks like it has too many normal letters
-      if (/[a-zA-Z0-9]/.test(username) && username.length > 3) {
-        if (!confirm("Your name has letters/numbers. Continue anyway?")) {
-          return;
-        }
-      }
-
-      if (selectedStickers.length === 0) return;
-
-      const combined = selectedStickers.join(''); // Combine all selected into one message
-
+      const combined = selectedStickers.join('');
       const { error } = await supabaseClient
         .from('sticker_messages')
         .insert({ username, sticker: combined });
 
       if (error) {
-        console.error(error);
         alert("Error: " + error.message);
       } else {
-        // Clear selection after sending
         selectedStickers = [];
         document.querySelectorAll('.sticker-btn').forEach(b => b.classList.remove('selected'));
-        document.getElementById('preview').innerHTML = '<span class="text-zinc-500 text-sm">Selected stickers will appear here</span>';
+        document.getElementById('preview').innerHTML = '<span class="text-black/60 text-sm">Selected stickers will appear here</span>';
         updateSendButton();
       }
     }
@@ -199,23 +314,15 @@
     function init() {
       initSupabase();
       renderStickers();
+      loadSavedName();
 
-      const usernameInput = document.getElementById('username');
-      usernameInput.addEventListener('input', updateSendButton);
-
-      // Live validation hint
-      usernameInput.addEventListener('input', () => {
-        if (/[a-zA-Z0-9]/.test(usernameInput.value)) {
-          usernameInput.style.borderColor = '#f59e0b'; // orange warning
-        } else {
-          usernameInput.style.borderColor = '';
-        }
-      });
+      if (!localStorage.getItem('stickerName')) {
+        setTimeout(() => openNamePicker(), 700);
+      }
 
       loadMessages();
       setupRealtime();
-
-      console.log('%c[Zine Sticker Chat] Emoji names + multi-sticker mode ready!', 'color:#ec4899');
+      updateSendButton();
     }
 
     window.onload = init;
