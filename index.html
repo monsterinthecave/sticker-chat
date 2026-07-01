@@ -19,12 +19,8 @@
     <div class="bg-zinc-900 border-b border-zinc-700 p-4 flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold">📖 Zine Sticker Drop</h1>
-        <p class="text-xs text-zinc-400">Stickers only • No text • Have fun</p>
+        <p class="text-xs text-zinc-400">Stickers only • No random names</p>
       </div>
-      <button onclick="randomUsername()" 
-              class="text-sm px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg flex items-center gap-1">
-        🎲 Random name
-      </button>
     </div>
 
     <!-- Messages -->
@@ -32,10 +28,25 @@
 
     <!-- Compose -->
     <div class="bg-zinc-900 border-t border-zinc-700 p-4 space-y-4">
-      <!-- Username -->
+
+      <!-- Username Dropdown -->
       <div>
-        <input id="username" type="text" maxlength="20" placeholder="Your name (letters, numbers, spaces, - _ )"
-               class="w-full bg-zinc-800 border border-zinc-700 focus:border-pink-500 rounded-xl px-4 py-3 text-sm outline-none">
+        <select id="username-select" class="w-full bg-zinc-800 border border-zinc-700 focus:border-pink-500 rounded-xl px-4 py-3 text-sm outline-none">
+          <option value="">Choose a name...</option>
+          <option value="ZineWizard">ZineWizard</option>
+          <option value="StickerGoblin">StickerGoblin</option>
+          <option value="Catmaxxer">Catmaxxer</option>
+          <option value="DiscStamper">DiscStamper</option>
+          <option value="PearlRdVibes">PearlRdVibes</option>
+          <option value="OldBrooklynChaos">OldBrooklynChaos</option>
+          <option value="TismHelpFan">TismHelpFan</option>
+          <option value="FreeZineDroppa">FreeZineDroppa</option>
+          <option value="custom">Custom name...</option>
+        </select>
+        
+        <!-- Hidden custom name input -->
+        <input id="custom-username" type="text" maxlength="20" placeholder="Type your custom name"
+               class="hidden w-full mt-2 bg-zinc-800 border border-zinc-700 focus:border-pink-500 rounded-xl px-4 py-3 text-sm outline-none">
       </div>
 
       <!-- Sticker Grid -->
@@ -43,8 +54,7 @@
 
       <!-- Preview + Send -->
       <div class="flex items-center gap-3">
-        <div id="preview" 
-             class="w-20 h-20 flex-shrink-0 flex items-center justify-center text-7xl bg-zinc-800 rounded-2xl"></div>
+        <div id="preview" class="w-20 h-20 flex-shrink-0 flex items-center justify-center text-7xl bg-zinc-800 rounded-2xl"></div>
         <button onclick="sendSticker()" id="send-btn"
                 class="flex-1 bg-pink-600 hover:bg-pink-500 disabled:bg-zinc-700 disabled:text-zinc-400 font-semibold py-4 rounded-2xl text-lg transition">
           DROP STICKER
@@ -54,10 +64,8 @@
   </div>
 
   <script>
-    // ==================== KEYS ALREADY FILLED IN ====================
     const SUPABASE_URL = 'https://tlbchiqxbtqejlyhgwcz.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsYmNoaXF4YnRxZWpseWhnd2N6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4NzIyOTcsImV4cCI6MjA5ODQ0ODI5N30.u8OrP8RPBbR5bAGLxWmzG2yQU_ywmUU4DvQU4kkZQjY';
-    // ============================================================
 
     const stickers = [
       '📖','📚','🖨️','✂️','📰','🎨','🖼️','📝','🔖','📌',
@@ -65,11 +73,6 @@
       '🐱','😺','😸','🙀','😼','🐾',
       '🌆','🏙️','🔥','💯','👾','🚀','🌟','❤️','👍','👏',
       '😂','🥳','🤩','😎','🤘','🎉','🍄','🦋'
-    ];
-
-    const usernamePresets = [
-      "ZineWizard", "StickerGoblin", "Catmaxxer", "DiscStamper", 
-      "PearlRdVibes", "OldBrooklynChaos", "TismHelpFan", "FreeZineDroppa"
     ];
 
     let supabaseClient;
@@ -101,11 +104,35 @@
       updateSendButton();
     }
 
+    function getUsername() {
+      const select = document.getElementById('username-select');
+      const customInput = document.getElementById('custom-username');
+
+      if (select.value === 'custom') {
+        return customInput.value.trim();
+      } else {
+        return select.value;
+      }
+    }
+
     function updateSendButton() {
       const btn = document.getElementById('send-btn');
-      const uname = document.getElementById('username').value.trim();
-      btn.disabled = !selectedSticker || !uname || uname.length < 2;
+      const username = getUsername();
+      btn.disabled = !selectedSticker || !username || username.length < 2;
     }
+
+    // Show/hide custom name input
+    document.getElementById('username-select').addEventListener('change', function() {
+      const customInput = document.getElementById('custom-username');
+      if (this.value === 'custom') {
+        customInput.classList.remove('hidden');
+        customInput.focus();
+      } else {
+        customInput.classList.add('hidden');
+        customInput.value = '';
+      }
+      updateSendButton();
+    });
 
     function createMessage(msg) {
       const div = document.createElement('div');
@@ -157,13 +184,10 @@
         return;
       }
 
-      const unameInput = document.getElementById('username');
-      const username = unameInput.value.trim();
+      const username = getUsername();
 
-      if (!username || username.length < 2 || username.length > 20 || 
-          !/^[a-zA-Z0-9][a-zA-Z0-9 _-]*[a-zA-Z0-9]$/.test(username)) {
-        unameInput.classList.add('border-red-500');
-        setTimeout(() => unameInput.classList.remove('border-red-500'), 1500);
+      if (!username || username.length < 2 || username.length > 20) {
+        alert("Please choose a valid name.");
         return;
       }
 
@@ -174,35 +198,27 @@
         .insert({ username, sticker: selectedSticker });
 
       if (error) {
-        console.error("Supabase insert error:", error);
+        console.error("Error:", error);
         alert("Error sending sticker: " + error.message);
       } else {
         lastSent = now;
-        localStorage.setItem('stickerUsername', username);
       }
-    }
-
-    function randomUsername() {
-      const name = usernamePresets[Math.floor(Math.random() * usernamePresets.length)];
-      document.getElementById('username').value = name;
-      localStorage.setItem('stickerUsername', name);
-      updateSendButton();
     }
 
     function init() {
       initSupabase();
       renderStickers();
 
-      const saved = localStorage.getItem('stickerUsername');
-      if (saved) document.getElementById('username').value = saved;
+      const select = document.getElementById('username-select');
+      const customInput = document.getElementById('custom-username');
 
-      const uname = document.getElementById('username');
-      uname.addEventListener('input', updateSendButton);
+      select.addEventListener('change', updateSendButton);
+      customInput.addEventListener('input', updateSendButton);
 
       loadMessages();
       setupRealtime();
 
-      console.log('%c[Zine Sticker Chat] Ready — stickers only!', 'color:#ec4899');
+      console.log('%c[Zine Sticker Chat] Ready with restricted names!', 'color:#ec4899');
     }
 
     window.onload = init;
