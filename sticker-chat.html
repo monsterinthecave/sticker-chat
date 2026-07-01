@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zine Sticker Drop</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .sticker-btn { transition: transform 0.1s; }
+    .sticker-btn:hover { transform: scale(1.2); }
+    .sticker-btn.selected { outline: 3px solid #ec4899; outline-offset: 2px; }
+    #messages { scrollbar-width: thin; }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100">
+  <div class="max-w-2xl mx-auto flex flex-col h-screen">
+    <!-- Header -->
+    <div class="bg-zinc-900 border-b border-zinc-700 p-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold">📖 Zine Sticker Drop</h1>
+        <p class="text-xs text-zinc-400">Stickers only • No text • Have fun</p>
+      </div>
+      <button onclick="randomUsername()" 
+              class="text-sm px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg flex items-center gap-1">
+        🎲 Random name
+      </button>
+    </div>
+
+    <!-- Messages -->
+    <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-950"></div>
+
+    <!-- Compose -->
+    <div class="bg-zinc-900 border-t border-zinc-700 p-4 space-y-4">
+      <!-- Username -->
+      <div>
+        <input id="username" type="text" maxlength="20" placeholder="Your name (letters, numbers, spaces, - _ )"
+               class="w-full bg-zinc-800 border border-zinc-700 focus:border-pink-500 rounded-xl px-4 py-3 text-sm outline-none">
+      </div>
+
+      <!-- Sticker Grid -->
+      <div id="sticker-grid" class="grid grid-cols-8 sm:grid-cols-10 gap-2 p-3 bg-zinc-800 rounded-2xl max-h-48 overflow-y-auto"></div>
+
+      <!-- Preview + Send -->
+      <div class="flex items-center gap-3">
+        <div id="preview" 
+             class="w-20 h-20 flex-shrink-0 flex items-center justify-center text-7xl bg-zinc-800 rounded-2xl"></div>
+        <button onclick="sendSticker()" id="send-btn"
+                class="flex-1 bg-pink-600 hover:bg-pink-500 disabled:bg-zinc-700 disabled:text-zinc-400 font-semibold py-4 rounded-2xl text-lg transition">
+          DROP STICKER
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==================== KEYS ALREADY FILLED IN ====================
+    const SUPABASE_URL = 'https://tlbchiqxbtqejlyhgwcz.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsYmNoaXF4YnRxZWpseWhnd2N6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4NzIyOTcsImV4cCI6MjA5ODQ0ODI5N30.u8OrP8RPBbR5bAGLxWmzG2yQU_ywmUU4DvQU4kkZQjY';
+    // ============================================================
+
+    const stickers = [
+      '📖','📚','🖨️','✂️','📰','🎨','🖼️','📝','🔖','📌',
+      '💻','🖥️','📱','🔧','💾','🐧','⚙️','🌐',
+      '🐱','😺','😸','🙀','😼','🐾',
+      '🌆','🏙️','🔥','💯','👾','🚀','🌟','❤️','👍','👏',
+      '😂','🥳','🤩','😎','🤘','🎉','🍄','🦋'
+    ];
+
+    const usernamePresets = [
+      "ZineWizard", "StickerGoblin", "Catmaxxer", "DiscStamper", 
+      "PearlRdVibes", "OldBrooklynChaos", "TismHelpFan", "FreeZineDroppa"
+    ];
+
+    let supabaseClient;
+    let selectedSticker = null;
+    let lastSent = 0;
+
+    function initSupabase() {
+      const { createClient } = supabase;
+      supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+
+    function renderStickers() {
+      const grid = document.getElementById('sticker-grid');
+      grid.innerHTML = '';
+      stickers.forEach(sticker => {
+        const btn = document.createElement('button');
+        btn.className = 'sticker-btn text-4xl p-2 hover:bg-zinc-700 rounded-xl aspect-square flex items-center justify-center';
+        btn.textContent = sticker;
+        btn.onclick = () => selectSticker(sticker, btn);
+        grid.appendChild(btn);
+      });
+    }
+
+    function selectSticker(sticker, btn) {
+      selectedSticker = sticker;
+      document.getElementById('preview').textContent = sticker;
+      document.querySelectorAll('.sticker-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      updateSendButton();
+    }
+
+    function updateSendButton() {
+      const btn = document.getElementById('send-btn');
+      const uname = document.getElementById('username').value.trim();
+      btn.disabled = !selectedSticker || !uname || uname.length < 2;
+    }
+
+    function createMessage(msg) {
+      const div = document.createElement('div');
+      div.className = 'flex items-start gap-3 bg-zinc-900 rounded-2xl p-4';
+      const time = new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      div.innerHTML = `
+        <div class="flex-1">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="px-3 py-0.5 bg-zinc-700 text-xs font-mono rounded-full text-pink-300">${msg.username}</span>
+            <span class="text-xs text-zinc-500">${time}</span>
+          </div>
+          <div class="text-6xl leading-none">${msg.sticker}</div>
+        </div>
+      `;
+      return div;
+    }
+
+    async function loadMessages() {
+      const { data } = await supabaseClient
+        .from('sticker_messages')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .limit(100);
+      
+      const container = document.getElementById('messages');
+      container.innerHTML = '';
+      if (data) data.forEach(m => container.appendChild(createMessage(m)));
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function appendMessage(msg) {
+      const container = document.getElementById('messages');
+      container.appendChild(createMessage(msg));
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function setupRealtime() {
+      supabaseClient
+        .channel('stickers')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sticker_messages' }, 
+            payload => appendMessage(payload.new))
+        .subscribe();
+    }
+
+    async function sendSticker() {
+      const now = Date.now();
+      if (now - lastSent < 3500) {
+        alert("Slow down sticker legend — wait a couple seconds.");
+        return;
+      }
+
+      const unameInput = document.getElementById('username');
+      const username = unameInput.value.trim();
+
+      if (!username || username.length < 2 || username.length > 20 || 
+          !/^[a-zA-Z0-9][a-zA-Z0-9 _-]*[a-zA-Z0-9]$/.test(username)) {
+        unameInput.classList.add('border-red-500');
+        setTimeout(() => unameInput.classList.remove('border-red-500'), 1500);
+        return;
+      }
+
+      if (!selectedSticker) return;
+
+      const { error } = await supabaseClient
+        .from('sticker_messages')
+        .insert({ username, sticker: selectedSticker });
+
+      if (error) {
+        console.error("Supabase insert error:", error);
+        alert("Error sending sticker: " + error.message);
+      } else {
+        lastSent = now;
+        localStorage.setItem('stickerUsername', username);
+      }
+    }
+
+    function randomUsername() {
+      const name = usernamePresets[Math.floor(Math.random() * usernamePresets.length)];
+      document.getElementById('username').value = name;
+      localStorage.setItem('stickerUsername', name);
+      updateSendButton();
+    }
+
+    function init() {
+      initSupabase();
+      renderStickers();
+
+      const saved = localStorage.getItem('stickerUsername');
+      if (saved) document.getElementById('username').value = saved;
+
+      const uname = document.getElementById('username');
+      uname.addEventListener('input', updateSendButton);
+
+      loadMessages();
+      setupRealtime();
+
+      console.log('%c[Zine Sticker Chat] Ready — stickers only!', 'color:#ec4899');
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
