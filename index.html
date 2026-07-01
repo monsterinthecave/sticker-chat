@@ -8,8 +8,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .sticker-btn { transition: transform 0.1s; }
-    .sticker-btn:hover { transform: scale(1.2); }
-    .sticker-btn.selected { outline: 3px solid #ec4899; outline-offset: 2px; }
+    .sticker-btn:hover { transform: scale(1.15); }
+    .sticker-btn.selected { outline: 3px solid #ec4899; outline-offset: 2px; background-color: #27251f; }
     #messages { scrollbar-width: thin; }
   </style>
 </head>
@@ -19,7 +19,7 @@
     <div class="bg-zinc-900 border-b border-zinc-700 p-4 flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold">📖 Zine Sticker Drop</h1>
-        <p class="text-xs text-zinc-400">Stickers only • No random names</p>
+        <p class="text-xs text-zinc-400">Emojis only • Send multiple at once</p>
       </div>
     </div>
 
@@ -29,37 +29,28 @@
     <!-- Compose -->
     <div class="bg-zinc-900 border-t border-zinc-700 p-4 space-y-4">
 
-      <!-- Username Dropdown -->
+      <!-- Emoji Username -->
       <div>
-        <select id="username-select" class="w-full bg-zinc-800 border border-zinc-700 focus:border-pink-500 rounded-xl px-4 py-3 text-sm outline-none">
-          <option value="">Choose a name...</option>
-          <option value="ZineWizard">ZineWizard</option>
-          <option value="StickerGoblin">StickerGoblin</option>
-          <option value="Catmaxxer">Catmaxxer</option>
-          <option value="DiscStamper">DiscStamper</option>
-          <option value="PearlRdVibes">PearlRdVibes</option>
-          <option value="OldBrooklynChaos">OldBrooklynChaos</option>
-          <option value="TismHelpFan">TismHelpFan</option>
-          <option value="FreeZineDroppa">FreeZineDroppa</option>
-          <option value="custom">Custom name...</option>
-        </select>
-        
-        <!-- Hidden custom name input -->
-        <input id="custom-username" type="text" maxlength="20" placeholder="Type your custom name"
-               class="hidden w-full mt-2 bg-zinc-800 border border-zinc-700 focus:border-pink-500 rounded-xl px-4 py-3 text-sm outline-none">
+        <input id="username" type="text" maxlength="30" 
+               placeholder="Your name (emojis only, e.g. 🐱📖)"
+               class="w-full bg-zinc-800 border border-zinc-700 focus:border-pink-500 rounded-xl px-4 py-3 text-sm outline-none">
+        <p class="text-[10px] text-zinc-500 mt-1">Use only emojis for your name</p>
       </div>
 
-      <!-- Sticker Grid -->
-      <div id="sticker-grid" class="grid grid-cols-8 sm:grid-cols-10 gap-2 p-3 bg-zinc-800 rounded-2xl max-h-48 overflow-y-auto"></div>
-
-      <!-- Preview + Send -->
-      <div class="flex items-center gap-3">
-        <div id="preview" class="w-20 h-20 flex-shrink-0 flex items-center justify-center text-7xl bg-zinc-800 rounded-2xl"></div>
-        <button onclick="sendSticker()" id="send-btn"
-                class="flex-1 bg-pink-600 hover:bg-pink-500 disabled:bg-zinc-700 disabled:text-zinc-400 font-semibold py-4 rounded-2xl text-lg transition">
-          DROP STICKER
-        </button>
+      <!-- Sticker Grid (Multi-select) -->
+      <div>
+        <p class="text-xs text-zinc-400 mb-2">Select one or more stickers:</p>
+        <div id="sticker-grid" class="grid grid-cols-8 sm:grid-cols-10 gap-2 p-3 bg-zinc-800 rounded-2xl max-h-48 overflow-y-auto"></div>
       </div>
+
+      <!-- Preview -->
+      <div id="preview" class="min-h-[70px] flex flex-wrap items-center gap-2 p-3 bg-zinc-800 rounded-2xl text-5xl"></div>
+
+      <!-- Send Button -->
+      <button onclick="sendSticker()" id="send-btn"
+              class="w-full bg-pink-600 hover:bg-pink-500 disabled:bg-zinc-700 disabled:text-zinc-400 font-semibold py-4 rounded-2xl text-lg transition">
+        DROP STICKERS
+      </button>
     </div>
   </div>
 
@@ -76,8 +67,7 @@
     ];
 
     let supabaseClient;
-    let selectedSticker = null;
-    let lastSent = 0;
+    let selectedStickers = [];
 
     function initSupabase() {
       const { createClient } = supabase;
@@ -91,48 +81,42 @@
         const btn = document.createElement('button');
         btn.className = 'sticker-btn text-4xl p-2 hover:bg-zinc-700 rounded-xl aspect-square flex items-center justify-center';
         btn.textContent = sticker;
-        btn.onclick = () => selectSticker(sticker, btn);
+        btn.onclick = () => toggleSticker(sticker, btn);
         grid.appendChild(btn);
       });
     }
 
-    function selectSticker(sticker, btn) {
-      selectedSticker = sticker;
-      document.getElementById('preview').textContent = sticker;
-      document.querySelectorAll('.sticker-btn').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
+    function toggleSticker(sticker, btn) {
+      if (selectedStickers.includes(sticker)) {
+        selectedStickers = selectedStickers.filter(s => s !== sticker);
+        btn.classList.remove('selected');
+      } else {
+        selectedStickers.push(sticker);
+        btn.classList.add('selected');
+      }
+      updatePreview();
       updateSendButton();
     }
 
-    function getUsername() {
-      const select = document.getElementById('username-select');
-      const customInput = document.getElementById('custom-username');
-
-      if (select.value === 'custom') {
-        return customInput.value.trim();
-      } else {
-        return select.value;
+    function updatePreview() {
+      const preview = document.getElementById('preview');
+      preview.innerHTML = '';
+      if (selectedStickers.length === 0) {
+        preview.innerHTML = '<span class="text-zinc-500 text-sm">Selected stickers will appear here</span>';
+        return;
       }
+      selectedStickers.forEach(s => {
+        const span = document.createElement('span');
+        span.textContent = s;
+        preview.appendChild(span);
+      });
     }
 
     function updateSendButton() {
       const btn = document.getElementById('send-btn');
-      const username = getUsername();
-      btn.disabled = !selectedSticker || !username || username.length < 2;
+      const username = document.getElementById('username').value.trim();
+      btn.disabled = selectedStickers.length === 0 || !username;
     }
-
-    // Show/hide custom name input
-    document.getElementById('username-select').addEventListener('change', function() {
-      const customInput = document.getElementById('custom-username');
-      if (this.value === 'custom') {
-        customInput.classList.remove('hidden');
-        customInput.focus();
-      } else {
-        customInput.classList.add('hidden');
-        customInput.value = '';
-      }
-      updateSendButton();
-    });
 
     function createMessage(msg) {
       const div = document.createElement('div');
@@ -144,7 +128,7 @@
             <span class="px-3 py-0.5 bg-zinc-700 text-xs font-mono rounded-full text-pink-300">${msg.username}</span>
             <span class="text-xs text-zinc-500">${time}</span>
           </div>
-          <div class="text-6xl leading-none">${msg.sticker}</div>
+          <div class="text-5xl leading-none flex flex-wrap gap-1">${msg.sticker}</div>
         </div>
       `;
       return div;
@@ -178,30 +162,37 @@
     }
 
     async function sendSticker() {
-      const now = Date.now();
-      if (now - lastSent < 3500) {
-        alert("Slow down sticker legend — wait a couple seconds.");
+      const username = document.getElementById('username').value.trim();
+
+      if (!username) {
+        alert("Please enter an emoji name.");
         return;
       }
 
-      const username = getUsername();
-
-      if (!username || username.length < 2 || username.length > 20) {
-        alert("Please choose a valid name.");
-        return;
+      // Basic check: warn if it looks like it has too many normal letters
+      if (/[a-zA-Z0-9]/.test(username) && username.length > 3) {
+        if (!confirm("Your name has letters/numbers. Continue anyway?")) {
+          return;
+        }
       }
 
-      if (!selectedSticker) return;
+      if (selectedStickers.length === 0) return;
+
+      const combined = selectedStickers.join(''); // Combine all selected into one message
 
       const { error } = await supabaseClient
         .from('sticker_messages')
-        .insert({ username, sticker: selectedSticker });
+        .insert({ username, sticker: combined });
 
       if (error) {
-        console.error("Error:", error);
-        alert("Error sending sticker: " + error.message);
+        console.error(error);
+        alert("Error: " + error.message);
       } else {
-        lastSent = now;
+        // Clear selection after sending
+        selectedStickers = [];
+        document.querySelectorAll('.sticker-btn').forEach(b => b.classList.remove('selected'));
+        document.getElementById('preview').innerHTML = '<span class="text-zinc-500 text-sm">Selected stickers will appear here</span>';
+        updateSendButton();
       }
     }
 
@@ -209,16 +200,22 @@
       initSupabase();
       renderStickers();
 
-      const select = document.getElementById('username-select');
-      const customInput = document.getElementById('custom-username');
+      const usernameInput = document.getElementById('username');
+      usernameInput.addEventListener('input', updateSendButton);
 
-      select.addEventListener('change', updateSendButton);
-      customInput.addEventListener('input', updateSendButton);
+      // Live validation hint
+      usernameInput.addEventListener('input', () => {
+        if (/[a-zA-Z0-9]/.test(usernameInput.value)) {
+          usernameInput.style.borderColor = '#f59e0b'; // orange warning
+        } else {
+          usernameInput.style.borderColor = '';
+        }
+      });
 
       loadMessages();
       setupRealtime();
 
-      console.log('%c[Zine Sticker Chat] Ready with restricted names!', 'color:#ec4899');
+      console.log('%c[Zine Sticker Chat] Emoji names + multi-sticker mode ready!', 'color:#ec4899');
     }
 
     window.onload = init;
